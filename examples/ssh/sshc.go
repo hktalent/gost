@@ -3,10 +3,9 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
 	"time"
-
-	"github.com/ginuerzh/gost"
 )
 
 var (
@@ -20,39 +19,39 @@ func init() {
 	flag.StringVar(&laddr, "L", ":18080", "listen address")
 	flag.StringVar(&faddr, "F", ":12222", "forward address")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 
 func main() {
-	chain := gost.NewChain(
-		gost.Node{
+	chain := pkg.NewChain(
+		pkg.Node{
 			Protocol:  "socks5",
 			Transport: "ssh",
 			Addr:      faddr,
-			HandshakeOptions: []gost.HandshakeOption{
-				gost.IntervalHandshakeOption(30 * time.Second),
+			HandshakeOptions: []pkg.HandshakeOption{
+				pkg.IntervalHandshakeOption(30 * time.Second),
 			},
-			Client: &gost.Client{
-				Connector:   gost.SOCKS5Connector(nil),
-				Transporter: gost.SSHTunnelTransporter(),
+			Client: &pkg.Client{
+				Connector:   pkg.SOCKS5Connector(nil),
+				Transporter: pkg.SSHTunnelTransporter(),
 			},
 		},
 	)
 
-	ln, err := gost.TCPListener(laddr)
+	ln, err := pkg.TCPListener(laddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.SOCKS5Handler(
-		gost.ChainHandlerOption(chain),
-		gost.TLSConfigHandlerOption(tlsConfig()),
+	h := pkg.SOCKS5Handler(
+		pkg.ChainHandlerOption(chain),
+		pkg.TLSConfigHandlerOption(tlsConfig()),
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }
 

@@ -3,12 +3,11 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
 	"net/url"
 
 	"golang.org/x/net/http2"
-
-	"github.com/ginuerzh/gost"
 )
 
 var (
@@ -25,14 +24,14 @@ func init() {
 	flag.StringVar(&user, "u", "", "username")
 	flag.StringVar(&passwd, "p", "", "password")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 	flag.BoolVar(&http2.VerboseLogs, "v", false, "HTTP2 verbose log")
 	flag.StringVar(&keyFile, "key", "key.pem", "TLS key file")
 	flag.StringVar(&certFile, "cert", "cert.pem", "TLS cert file")
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 
@@ -50,7 +49,7 @@ func http2Server() {
 		}
 	}
 
-	ln, err := gost.HTTP2Listener(laddr, &tls.Config{Certificates: []tls.Certificate{cert}})
+	ln, err := pkg.HTTP2Listener(laddr, &tls.Config{Certificates: []tls.Certificate{cert}})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,11 +59,11 @@ func http2Server() {
 		users = append(users, url.UserPassword(user, passwd))
 	}
 
-	h := gost.HTTP2Handler(
-		gost.UsersHandlerOption(users...),
-		gost.AddrHandlerOption(laddr),
+	h := pkg.HTTP2Handler(
+		pkg.UsersHandlerOption(users...),
+		pkg.AddrHandlerOption(laddr),
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
 	"time"
 
@@ -19,11 +20,11 @@ func init() {
 	flag.StringVar(&laddr, "L", ":18080", "listen address")
 	flag.StringVar(&faddr, "F", ":8080", "forward address")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 func main() {
@@ -35,23 +36,23 @@ func udpDirectForwardServer() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.UDPDirectForwardHandler(
+	h := pkg.UDPDirectForwardHandler(
 		faddr,
-	/*
-		gost.ChainHandlerOption(gost.NewChain(gost.Node{
-			Protocol:  "socks5",
-			Transport: "tcp",
-			Addr:      ":11080",
-			User:      url.UserPassword("admin", "123456"),
-			Client: &gost.Client{
-				Connector: gost.SOCKS5Connector(
-					url.UserPassword("admin", "123456"),
-				),
-				Transporter: gost.TCPTransporter(),
-			},
-		})),
-	*/
+		/*
+			gost.ChainHandlerOption(gost.NewChain(gost.Node{
+				Protocol:  "socks5",
+				Transport: "tcp",
+				Addr:      ":11080",
+				User:      url.UserPassword("admin", "123456"),
+				Client: &gost.Client{
+					Connector: gost.SOCKS5Connector(
+						url.UserPassword("admin", "123456"),
+					),
+					Transporter: gost.TCPTransporter(),
+				},
+			})),
+		*/
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }

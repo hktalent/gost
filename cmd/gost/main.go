@@ -5,13 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ginuerzh/gost/pkg"
 	"net/http"
 	"os"
 	"runtime"
 
 	_ "net/http/pprof"
 
-	"github.com/ginuerzh/gost"
 	"github.com/go-log/log"
 )
 
@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	gost.SetLogger(&gost.LogLogger{})
+	pkg.SetLogger(&pkg.LogLogger{})
 
 	var (
 		printVersion bool
@@ -43,7 +43,7 @@ func init() {
 
 	if printVersion {
 		fmt.Fprintf(os.Stdout, "gost %s (%s %s/%s)\n",
-			gost.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+			pkg.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
@@ -72,7 +72,7 @@ func main() {
 	tlsConfig, err := tlsConfig(defaultCertFile, defaultKeyFile, "")
 	if err != nil {
 		// generate random self-signed certificate.
-		cert, err := gost.GenCertificate()
+		cert, err := pkg.GenCertificate()
 		if err != nil {
 			log.Log(err)
 			os.Exit(1)
@@ -84,7 +84,7 @@ func main() {
 		log.Log("load TLS certificate files OK")
 	}
 
-	gost.DefaultTLSConfig = tlsConfig
+	pkg.DefaultTLSConfig = tlsConfig
 
 	if err := start(); err != nil {
 		log.Log(err)
@@ -95,7 +95,7 @@ func main() {
 }
 
 func start() error {
-	gost.Debug = baseCfg.Debug
+	pkg.Debug = baseCfg.Debug
 
 	var routers []router
 	rts, err := baseCfg.route.GenRouters()

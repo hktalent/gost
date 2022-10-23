@@ -2,9 +2,8 @@ package main
 
 import (
 	"crypto/tls"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
-
-	"github.com/ginuerzh/gost"
 )
 
 func main() {
@@ -12,16 +11,16 @@ func main() {
 }
 
 func sshRemoteForwardServer() {
-	ln, err := gost.TCPListener(":11222")
+	ln, err := pkg.TCPListener(":11222")
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.SSHForwardHandler(
-		gost.AddrHandlerOption(":11222"),
+	h := pkg.SSHForwardHandler(
+		pkg.AddrHandlerOption(":11222"),
 		// gost.UsersHandlerOption(url.UserPassword("admin", "123456")),
-		gost.TLSConfigHandlerOption(tlsConfig()),
+		pkg.TLSConfigHandlerOption(tlsConfig()),
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }
 

@@ -3,9 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
-
-	"github.com/ginuerzh/gost"
 )
 
 var (
@@ -18,12 +17,12 @@ func init() {
 
 	flag.StringVar(&laddr, "L", ":6121", "listen address")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 
@@ -32,14 +31,14 @@ func main() {
 }
 
 func quicServer() {
-	ln, err := gost.QUICListener(laddr, &gost.QUICConfig{TLSConfig: tlsConfig()})
+	ln, err := pkg.QUICListener(laddr, &pkg.QUICConfig{TLSConfig: tlsConfig()})
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.SOCKS5Handler(gost.TLSConfigHandlerOption(tlsConfig()))
+	h := pkg.SOCKS5Handler(pkg.TLSConfigHandlerOption(tlsConfig()))
 	log.Println("server listen on", laddr)
 
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }
 

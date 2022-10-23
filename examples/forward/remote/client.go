@@ -1,9 +1,8 @@
 package main
 
 import (
+	"github.com/ginuerzh/gost/pkg"
 	"log"
-
-	"github.com/ginuerzh/gost"
 )
 
 func main() {
@@ -11,25 +10,25 @@ func main() {
 }
 
 func sshRemoteForward() {
-	chain := gost.NewChain(
-		gost.Node{
+	chain := pkg.NewChain(
+		pkg.Node{
 			Protocol:  "forward",
 			Transport: "ssh",
 			Addr:      "localhost:11222",
-			Client: &gost.Client{
-				Connector:   gost.SSHRemoteForwardConnector(),
-				Transporter: gost.SSHForwardTransporter(),
+			Client: &pkg.Client{
+				Connector:   pkg.SSHRemoteForwardConnector(),
+				Transporter: pkg.SSHForwardTransporter(),
 			},
 		},
 	)
 
-	ln, err := gost.TCPRemoteForwardListener(":11800", chain)
+	ln, err := pkg.TCPRemoteForwardListener(":11800", chain)
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.TCPRemoteForwardHandler(
+	h := pkg.TCPRemoteForwardHandler(
 		"localhost:10000",
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -10,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ginuerzh/gost"
 	"golang.org/x/net/http2"
 )
 
@@ -27,16 +27,16 @@ func init() {
 	flag.IntVar(&concurrency, "c", 1, "Number of multiple requests to make at a time")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
 	flag.BoolVar(&http2.VerboseLogs, "v", false, "HTTP2 verbose logs")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 
 func main() {
-	chain := gost.NewChain(
+	chain := pkg.NewChain(
 
 		/*
 			// http+tcp
@@ -148,13 +148,13 @@ func main() {
 			},
 		*/
 		// socks5+h2
-		gost.Node{
+		pkg.Node{
 			Addr: "localhost:8443",
-			Client: &gost.Client{
+			Client: &pkg.Client{
 				// Connector: gost.HTTPConnector(url.UserPassword("admin", "123456")),
-				Connector: gost.SOCKS5Connector(url.UserPassword("admin", "123456")),
+				Connector: pkg.SOCKS5Connector(url.UserPassword("admin", "123456")),
 				// Transporter: gost.H2CTransporter(), // HTTP2 h2c mode
-				Transporter: gost.H2Transporter(nil), // HTTP2 h2
+				Transporter: pkg.H2Transporter(nil), // HTTP2 h2
 			},
 		},
 	)
@@ -182,7 +182,7 @@ func main() {
 	}
 }
 
-func request(chain *gost.Chain, start <-chan struct{}) {
+func request(chain *pkg.Chain, start <-chan struct{}) {
 	defer ewg.Done()
 
 	swg.Done()
@@ -211,7 +211,7 @@ func request(chain *gost.Chain, start <-chan struct{}) {
 	}
 	defer resp.Body.Close()
 
-	if gost.Debug {
+	if pkg.Debug {
 		rb, _ := httputil.DumpRequest(req, true)
 		log.Println(string(rb))
 		rb, _ = httputil.DumpResponse(resp, true)

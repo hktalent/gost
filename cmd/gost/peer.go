@@ -4,13 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/ginuerzh/gost/pkg"
 	"io"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ginuerzh/gost"
 )
 
 type peerConfig struct {
@@ -19,8 +18,8 @@ type peerConfig struct {
 	FailTimeout time.Duration
 	period      time.Duration // the period for live reloading
 	Nodes       []string      `json:"nodes"`
-	group       *gost.NodeGroup
-	baseNodes   []gost.Node
+	group       *pkg.NodeGroup
+	baseNodes   []pkg.Node
 	stopped     chan struct{}
 }
 
@@ -46,14 +45,14 @@ func (cfg *peerConfig) Reload(r io.Reader) error {
 	group := cfg.group
 	group.SetSelector(
 		nil,
-		gost.WithFilter(
-			&gost.FailFilter{
+		pkg.WithFilter(
+			&pkg.FailFilter{
 				MaxFails:    cfg.MaxFails,
 				FailTimeout: cfg.FailTimeout,
 			},
-			&gost.InvalidFilter{},
+			&pkg.InvalidFilter{},
 		),
-		gost.WithStrategy(gost.NewStrategy(cfg.Strategy)),
+		pkg.WithStrategy(pkg.NewStrategy(cfg.Strategy)),
 	)
 
 	gNodes := cfg.baseNodes

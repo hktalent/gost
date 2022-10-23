@@ -1,9 +1,8 @@
 package main
 
 import (
+	"github.com/ginuerzh/gost/pkg"
 	"log"
-
-	"github.com/ginuerzh/gost"
 )
 
 func main() {
@@ -11,24 +10,24 @@ func main() {
 }
 
 func tcpForward() {
-	chain := gost.NewChain(
-		gost.Node{
+	chain := pkg.NewChain(
+		pkg.Node{
 			Addr: "localhost:11222",
-			Client: &gost.Client{
-				Connector:   gost.SSHDirectForwardConnector(),
-				Transporter: gost.SSHForwardTransporter(),
+			Client: &pkg.Client{
+				Connector:   pkg.SSHDirectForwardConnector(),
+				Transporter: pkg.SSHForwardTransporter(),
 			},
 		},
 	)
 
-	ln, err := gost.TCPListener(":11800")
+	ln, err := pkg.TCPListener(":11800")
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.TCPDirectForwardHandler(
+	h := pkg.TCPDirectForwardHandler(
 		"localhost:22",
-		gost.ChainHandlerOption(chain),
+		pkg.ChainHandlerOption(chain),
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }

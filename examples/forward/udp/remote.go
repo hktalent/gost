@@ -2,10 +2,9 @@ package main
 
 import (
 	"flag"
+	"github.com/ginuerzh/gost/pkg"
 	"log"
 	"time"
-
-	"github.com/ginuerzh/gost"
 )
 
 var (
@@ -19,11 +18,11 @@ func init() {
 	flag.StringVar(&laddr, "L", ":18080", "listen address")
 	flag.StringVar(&faddr, "F", ":8080", "forward address")
 	flag.BoolVar(&quiet, "q", false, "quiet mode")
-	flag.BoolVar(&gost.Debug, "d", false, "debug mode")
+	flag.BoolVar(&pkg.Debug, "d", false, "debug mode")
 	flag.Parse()
 
 	if quiet {
-		gost.SetLogger(&gost.NopLogger{})
+		pkg.SetLogger(&pkg.NopLogger{})
 	}
 }
 func main() {
@@ -31,7 +30,7 @@ func main() {
 }
 
 func udpRemoteForwardServer() {
-	ln, err := gost.UDPRemoteForwardListener(
+	ln, err := pkg.UDPRemoteForwardListener(
 		laddr,
 		/*
 			gost.NewChain(gost.Node{
@@ -52,9 +51,9 @@ func udpRemoteForwardServer() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := gost.UDPRemoteForwardHandler(
+	h := pkg.UDPRemoteForwardHandler(
 		faddr,
 	)
-	s := &gost.Server{ln}
+	s := &pkg.Server{ln}
 	log.Fatal(s.Serve(h))
 }

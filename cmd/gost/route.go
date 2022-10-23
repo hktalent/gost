@@ -6,13 +6,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"github.com/ginuerzh/gost/pkg"
 	"net"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/ginuerzh/gost"
 	"github.com/go-log/log"
 )
 
@@ -34,15 +34,15 @@ type route struct {
 	Interface  string
 }
 
-func (r *route) parseChain() (*gost.Chain, error) {
-	chain := gost.NewChain()
+func (r *route) parseChain() (*pkg.Chain, error) {
+	chain := pkg.NewChain()
 	chain.Retries = r.Retries
 	chain.Mark = r.Mark
 	chain.Interface = r.Interface
 	gid := 1 // group ID
 
 	for _, ns := range r.ChainNodes {
-		ngroup := gost.NewNodeGroup()
+		ngroup := pkg.NewNodeGroup()
 		ngroup.ID = gid
 		gid++
 
@@ -60,14 +60,14 @@ func (r *route) parseChain() (*gost.Chain, error) {
 		ngroup.AddNode(nodes...)
 
 		ngroup.SetSelector(nil,
-			gost.WithFilter(
-				&gost.FailFilter{
+			pkg.WithFilter(
+				&pkg.FailFilter{
 					MaxFails:    nodes[0].GetInt("max_fails"),
 					FailTimeout: nodes[0].GetDuration("fail_timeout"),
 				},
-				&gost.InvalidFilter{},
+				&pkg.InvalidFilter{},
 			),
-			gost.WithStrategy(gost.NewStrategy(nodes[0].Get("strategy"))),
+			pkg.WithStrategy(pkg.NewStrategy(nodes[0].Get("strategy"))),
 		)
 
 		if cfg := nodes[0].Get("peer"); cfg != "" {
@@ -82,7 +82,7 @@ func (r *route) parseChain() (*gost.Chain, error) {
 			peerCfg.Reload(f)
 			f.Close()
 
-			go gost.PeriodReload(peerCfg, cfg)
+			go pkg.PeriodReload(peerCfg, cfg)
 		}
 
 		chain.AddNodeGroup(ngroup)
@@ -91,8 +91,8 @@ func (r *route) parseChain() (*gost.Chain, error) {
 	return chain, nil
 }
 
-func parseChainNode(ns string) (nodes []gost.Node, err error) {
-	node, err := gost.ParseNode(ns)
+func parseChainNode(ns string) (nodes []pkg.Node, err error) {
+	node, err := pkg.ParseNode(ns)
 	if err != nil {
 		return
 	}
@@ -163,7 +163,7 @@ func parseChainNode(ns string) (nodes []gost.Node, err error) {
 		tlsCfg.Certificates = []tls.Certificate{cert}
 	}
 
-	wsOpts := &gost.WSOptions{}
+	wsOpts := &pkg.WSOptions{}
 	wsOpts.EnableCompression = node.GetBool("compression")
 	wsOpts.ReadBufferSize = node.GetInt("rbuf")
 	wsOpts.WriteBufferSize = node.GetInt("wbuf")
@@ -172,41 +172,41 @@ func parseChainNode(ns string) (nodes []gost.Node, err error) {
 
 	timeout := node.GetDuration("timeout")
 
-	var tr gost.Transporter
+	var tr pkg.Transporter
 	switch node.Transport {
 	case "tls":
-		tr = gost.TLSTransporter()
+		tr = pkg.TLSTransporter()
 	case "mtls":
-		tr = gost.MTLSTransporter()
+		tr = pkg.MTLSTransporter()
 	case "ws":
-		tr = gost.WSTransporter(wsOpts)
+		tr = pkg.WSTransporter(wsOpts)
 	case "mws":
-		tr = gost.MWSTransporter(wsOpts)
+		tr = pkg.MWSTransporter(wsOpts)
 	case "wss":
-		tr = gost.WSSTransporter(wsOpts)
+		tr = pkg.WSSTransporter(wsOpts)
 	case "mwss":
-		tr = gost.MWSSTransporter(wsOpts)
+		tr = pkg.MWSSTransporter(wsOpts)
 	case "kcp":
 		config, err := parseKCPConfig(node.Get("c"))
 		if err != nil {
 			return nil, err
 		}
 		if config == nil {
-			conf := gost.DefaultKCPConfig
+			conf := pkg.DefaultKCPConfig
 			if node.GetBool("tcp") {
 				conf.TCP = true
 			}
 			config = &conf
 		}
-		tr = gost.KCPTransporter(config)
+		tr = pkg.KCPTransporter(config)
 	case "ssh":
 		if node.Protocol == "direct" || node.Protocol == "remote" {
-			tr = gost.SSHForwardTransporter()
+			tr = pkg.SSHForwardTransporter()
 		} else {
-			tr = gost.SSHTunnelTransporter()
+			tr = pkg.SSHTunnelTransporter()
 		}
 	case "quic":
-		config := &gost.QUICConfig{
+		config := &pkg.QUICConfig{
 			TLSConfig:   tlsCfg,
 			KeepAlive:   node.GetBool("keepalive"),
 			Timeout:     timeout,
@@ -218,55 +218,55 @@ func parseChainNode(ns string) (nodes []gost.Node, err error) {
 			config.Key = sum[:]
 		}
 
-		tr = gost.QUICTransporter(config)
+		tr = pkg.QUICTransporter(config)
 	case "http2":
-		tr = gost.HTTP2Transporter(tlsCfg)
+		tr = pkg.HTTP2Transporter(tlsCfg)
 	case "h2":
-		tr = gost.H2Transporter(tlsCfg, node.Get("path"))
+		tr = pkg.H2Transporter(tlsCfg, node.Get("path"))
 	case "h2c":
-		tr = gost.H2CTransporter(node.Get("path"))
+		tr = pkg.H2CTransporter(node.Get("path"))
 	case "obfs4":
-		tr = gost.Obfs4Transporter()
+		tr = pkg.Obfs4Transporter()
 	case "ohttp":
-		tr = gost.ObfsHTTPTransporter()
+		tr = pkg.ObfsHTTPTransporter()
 	case "otls":
-		tr = gost.ObfsTLSTransporter()
+		tr = pkg.ObfsTLSTransporter()
 	case "ftcp":
-		tr = gost.FakeTCPTransporter()
+		tr = pkg.FakeTCPTransporter()
 	case "udp":
-		tr = gost.UDPTransporter()
+		tr = pkg.UDPTransporter()
 	default:
-		tr = gost.TCPTransporter()
+		tr = pkg.TCPTransporter()
 	}
 
-	var connector gost.Connector
+	var connector pkg.Connector
 	switch node.Protocol {
 	case "http2":
-		connector = gost.HTTP2Connector(node.User)
+		connector = pkg.HTTP2Connector(node.User)
 	case "socks", "socks5":
-		connector = gost.SOCKS5Connector(node.User)
+		connector = pkg.SOCKS5Connector(node.User)
 	case "socks4":
-		connector = gost.SOCKS4Connector()
+		connector = pkg.SOCKS4Connector()
 	case "socks4a":
-		connector = gost.SOCKS4AConnector()
+		connector = pkg.SOCKS4AConnector()
 	case "ss":
-		connector = gost.ShadowConnector(node.User)
+		connector = pkg.ShadowConnector(node.User)
 	case "ssu":
-		connector = gost.ShadowUDPConnector(node.User)
+		connector = pkg.ShadowUDPConnector(node.User)
 	case "direct":
-		connector = gost.SSHDirectForwardConnector()
+		connector = pkg.SSHDirectForwardConnector()
 	case "remote":
-		connector = gost.SSHRemoteForwardConnector()
+		connector = pkg.SSHRemoteForwardConnector()
 	case "forward":
-		connector = gost.ForwardConnector()
+		connector = pkg.ForwardConnector()
 	case "sni":
-		connector = gost.SNIConnector(node.Get("host"))
+		connector = pkg.SNIConnector(node.Get("host"))
 	case "http":
-		connector = gost.HTTPConnector(node.User)
+		connector = pkg.HTTPConnector(node.User)
 	case "relay":
-		connector = gost.RelayConnector(node.User)
+		connector = pkg.RelayConnector(node.User)
 	default:
-		connector = gost.AutoConnector(node.User)
+		connector = pkg.AutoConnector(node.User)
 	}
 
 	host := node.Get("host")
@@ -275,36 +275,36 @@ func parseChainNode(ns string) (nodes []gost.Node, err error) {
 	}
 
 	node.DialOptions = append(node.DialOptions,
-		gost.TimeoutDialOption(timeout),
-		gost.HostDialOption(host),
+		pkg.TimeoutDialOption(timeout),
+		pkg.HostDialOption(host),
 	)
 
-	node.ConnectOptions = []gost.ConnectOption{
-		gost.UserAgentConnectOption(node.Get("agent")),
-		gost.NoTLSConnectOption(node.GetBool("notls")),
-		gost.NoDelayConnectOption(node.GetBool("nodelay")),
+	node.ConnectOptions = []pkg.ConnectOption{
+		pkg.UserAgentConnectOption(node.Get("agent")),
+		pkg.NoTLSConnectOption(node.GetBool("notls")),
+		pkg.NoDelayConnectOption(node.GetBool("nodelay")),
 	}
 
-	sshConfig := &gost.SSHConfig{}
+	sshConfig := &pkg.SSHConfig{}
 	if s := node.Get("ssh_key"); s != "" {
-		key, err := gost.ParseSSHKeyFile(s)
+		key, err := pkg.ParseSSHKeyFile(s)
 		if err != nil {
 			return nil, err
 		}
 		sshConfig.Key = key
 	}
-	handshakeOptions := []gost.HandshakeOption{
-		gost.AddrHandshakeOption(node.Addr),
-		gost.HostHandshakeOption(host),
-		gost.UserHandshakeOption(node.User),
-		gost.TLSConfigHandshakeOption(tlsCfg),
-		gost.IntervalHandshakeOption(node.GetDuration("ping")),
-		gost.TimeoutHandshakeOption(timeout),
-		gost.RetryHandshakeOption(node.GetInt("retry")),
-		gost.SSHConfigHandshakeOption(sshConfig),
+	handshakeOptions := []pkg.HandshakeOption{
+		pkg.AddrHandshakeOption(node.Addr),
+		pkg.HostHandshakeOption(host),
+		pkg.UserHandshakeOption(node.User),
+		pkg.TLSConfigHandshakeOption(tlsCfg),
+		pkg.IntervalHandshakeOption(node.GetDuration("ping")),
+		pkg.TimeoutHandshakeOption(timeout),
+		pkg.RetryHandshakeOption(node.GetInt("retry")),
+		pkg.SSHConfigHandshakeOption(sshConfig),
 	}
 
-	node.Client = &gost.Client{
+	node.Client = &pkg.Client{
 		Connector:   connector,
 		Transporter: tr,
 	}
@@ -316,18 +316,18 @@ func parseChainNode(ns string) (nodes []gost.Node, err error) {
 		nd := node.Clone()
 		nd.Addr = ip
 		// override the default node address
-		nd.HandshakeOptions = append(handshakeOptions, gost.AddrHandshakeOption(ip))
+		nd.HandshakeOptions = append(handshakeOptions, pkg.AddrHandshakeOption(ip))
 		// One node per IP
 		nodes = append(nodes, nd)
 	}
 	if len(ips) == 0 {
 		node.HandshakeOptions = handshakeOptions
-		nodes = []gost.Node{node}
+		nodes = []pkg.Node{node}
 	}
 
 	if node.Transport == "obfs4" {
 		for i := range nodes {
-			if err := gost.Obfs4Init(nodes[i], false); err != nil {
+			if err := pkg.Obfs4Init(nodes[i], false); err != nil {
 				return nil, err
 			}
 		}
@@ -345,7 +345,7 @@ func (r *route) GenRouters() ([]router, error) {
 	var rts []router
 
 	for _, ns := range r.ServeNodes {
-		node, err := gost.ParseNode(ns)
+		node, err := pkg.ParseNode(ns)
 		if err != nil {
 			return nil, err
 		}
@@ -370,7 +370,7 @@ func (r *route) GenRouters() ([]router, error) {
 		if authenticator == nil && node.User != nil {
 			kvs := make(map[string]string)
 			kvs[node.User.Username()], _ = node.User.Password()
-			authenticator = gost.NewLocalAuthenticator(kvs)
+			authenticator = pkg.NewLocalAuthenticator(kvs)
 		}
 		if node.User == nil {
 			if users, _ := parseUsers(node.Get("secrets")); len(users) > 0 {
@@ -383,7 +383,7 @@ func (r *route) GenRouters() ([]router, error) {
 			return nil, err
 		}
 
-		wsOpts := &gost.WSOptions{}
+		wsOpts := &pkg.WSOptions{}
 		wsOpts.EnableCompression = node.GetBool("compression")
 		wsOpts.ReadBufferSize = node.GetInt("rbuf")
 		wsOpts.WriteBufferSize = node.GetInt("wbuf")
@@ -400,59 +400,59 @@ func (r *route) GenRouters() ([]router, error) {
 			}
 		}
 
-		var ln gost.Listener
+		var ln pkg.Listener
 		switch node.Transport {
 		case "tls":
-			ln, err = gost.TLSListener(node.Addr, tlsCfg)
+			ln, err = pkg.TLSListener(node.Addr, tlsCfg)
 		case "mtls":
-			ln, err = gost.MTLSListener(node.Addr, tlsCfg)
+			ln, err = pkg.MTLSListener(node.Addr, tlsCfg)
 		case "ws":
-			ln, err = gost.WSListener(node.Addr, wsOpts)
+			ln, err = pkg.WSListener(node.Addr, wsOpts)
 		case "mws":
-			ln, err = gost.MWSListener(node.Addr, wsOpts)
+			ln, err = pkg.MWSListener(node.Addr, wsOpts)
 		case "wss":
-			ln, err = gost.WSSListener(node.Addr, tlsCfg, wsOpts)
+			ln, err = pkg.WSSListener(node.Addr, tlsCfg, wsOpts)
 		case "mwss":
-			ln, err = gost.MWSSListener(node.Addr, tlsCfg, wsOpts)
+			ln, err = pkg.MWSSListener(node.Addr, tlsCfg, wsOpts)
 		case "kcp":
 			config, er := parseKCPConfig(node.Get("c"))
 			if er != nil {
 				return nil, er
 			}
 			if config == nil {
-				conf := gost.DefaultKCPConfig
+				conf := pkg.DefaultKCPConfig
 				if node.GetBool("tcp") {
 					conf.TCP = true
 				}
 				config = &conf
 			}
-			ln, err = gost.KCPListener(node.Addr, config)
+			ln, err = pkg.KCPListener(node.Addr, config)
 		case "ssh":
-			config := &gost.SSHConfig{
+			config := &pkg.SSHConfig{
 				Authenticator: authenticator,
 				TLSConfig:     tlsCfg,
 			}
 			if s := node.Get("ssh_key"); s != "" {
-				key, err := gost.ParseSSHKeyFile(s)
+				key, err := pkg.ParseSSHKeyFile(s)
 				if err != nil {
 					return nil, err
 				}
 				config.Key = key
 			}
 			if s := node.Get("ssh_authorized_keys"); s != "" {
-				keys, err := gost.ParseSSHAuthorizedKeysFile(s)
+				keys, err := pkg.ParseSSHAuthorizedKeysFile(s)
 				if err != nil {
 					return nil, err
 				}
 				config.AuthorizedKeys = keys
 			}
 			if node.Protocol == "forward" {
-				ln, err = gost.TCPListener(node.Addr)
+				ln, err = pkg.TCPListener(node.Addr)
 			} else {
-				ln, err = gost.SSHTunnelListener(node.Addr, config)
+				ln, err = pkg.SSHTunnelListener(node.Addr, config)
 			}
 		case "quic":
-			config := &gost.QUICConfig{
+			config := &pkg.QUICConfig{
 				TLSConfig:   tlsCfg,
 				KeepAlive:   node.GetBool("keepalive"),
 				Timeout:     timeout,
@@ -463,22 +463,22 @@ func (r *route) GenRouters() ([]router, error) {
 				config.Key = sum[:]
 			}
 
-			ln, err = gost.QUICListener(node.Addr, config)
+			ln, err = pkg.QUICListener(node.Addr, config)
 		case "http2":
-			ln, err = gost.HTTP2Listener(node.Addr, tlsCfg)
+			ln, err = pkg.HTTP2Listener(node.Addr, tlsCfg)
 		case "h2":
-			ln, err = gost.H2Listener(node.Addr, tlsCfg, node.Get("path"))
+			ln, err = pkg.H2Listener(node.Addr, tlsCfg, node.Get("path"))
 		case "h2c":
-			ln, err = gost.H2CListener(node.Addr, node.Get("path"))
+			ln, err = pkg.H2CListener(node.Addr, node.Get("path"))
 		case "tcp":
 			// Directly use SSH port forwarding if the last chain node is forward+ssh
 			if chain.LastNode().Protocol == "forward" && chain.LastNode().Transport == "ssh" {
-				chain.Nodes()[len(chain.Nodes())-1].Client.Connector = gost.SSHDirectForwardConnector()
-				chain.Nodes()[len(chain.Nodes())-1].Client.Transporter = gost.SSHForwardTransporter()
+				chain.Nodes()[len(chain.Nodes())-1].Client.Connector = pkg.SSHDirectForwardConnector()
+				chain.Nodes()[len(chain.Nodes())-1].Client.Transporter = pkg.SSHForwardTransporter()
 			}
-			ln, err = gost.TCPListener(node.Addr)
+			ln, err = pkg.TCPListener(node.Addr)
 		case "udp":
-			ln, err = gost.UDPListener(node.Addr, &gost.UDPListenConfig{
+			ln, err = pkg.UDPListener(node.Addr, &pkg.UDPListenConfig{
 				TTL:       ttl,
 				Backlog:   node.GetInt("backlog"),
 				QueueSize: node.GetInt("queue"),
@@ -486,29 +486,29 @@ func (r *route) GenRouters() ([]router, error) {
 		case "rtcp":
 			// Directly use SSH port forwarding if the last chain node is forward+ssh
 			if chain.LastNode().Protocol == "forward" && chain.LastNode().Transport == "ssh" {
-				chain.Nodes()[len(chain.Nodes())-1].Client.Connector = gost.SSHRemoteForwardConnector()
-				chain.Nodes()[len(chain.Nodes())-1].Client.Transporter = gost.SSHForwardTransporter()
+				chain.Nodes()[len(chain.Nodes())-1].Client.Connector = pkg.SSHRemoteForwardConnector()
+				chain.Nodes()[len(chain.Nodes())-1].Client.Transporter = pkg.SSHForwardTransporter()
 			}
-			ln, err = gost.TCPRemoteForwardListener(node.Addr, chain)
+			ln, err = pkg.TCPRemoteForwardListener(node.Addr, chain)
 		case "rudp":
-			ln, err = gost.UDPRemoteForwardListener(node.Addr,
+			ln, err = pkg.UDPRemoteForwardListener(node.Addr,
 				chain,
-				&gost.UDPListenConfig{
+				&pkg.UDPListenConfig{
 					TTL:       ttl,
 					Backlog:   node.GetInt("backlog"),
 					QueueSize: node.GetInt("queue"),
 				})
 		case "obfs4":
-			if err = gost.Obfs4Init(node, true); err != nil {
+			if err = pkg.Obfs4Init(node, true); err != nil {
 				return nil, err
 			}
-			ln, err = gost.Obfs4Listener(node.Addr)
+			ln, err = pkg.Obfs4Listener(node.Addr)
 		case "ohttp":
-			ln, err = gost.ObfsHTTPListener(node.Addr)
+			ln, err = pkg.ObfsHTTPListener(node.Addr)
 		case "otls":
-			ln, err = gost.ObfsTLSListener(node.Addr)
+			ln, err = pkg.ObfsTLSListener(node.Addr)
 		case "tun":
-			cfg := gost.TunConfig{
+			cfg := pkg.TunConfig{
 				Name:    node.Get("name"),
 				Addr:    node.Get("net"),
 				Peer:    node.Get("peer"),
@@ -516,101 +516,101 @@ func (r *route) GenRouters() ([]router, error) {
 				Routes:  tunRoutes,
 				Gateway: node.Get("gw"),
 			}
-			ln, err = gost.TunListener(cfg)
+			ln, err = pkg.TunListener(cfg)
 		case "tap":
-			cfg := gost.TapConfig{
+			cfg := pkg.TapConfig{
 				Name:    node.Get("name"),
 				Addr:    node.Get("net"),
 				MTU:     node.GetInt("mtu"),
 				Routes:  strings.Split(node.Get("route"), ","),
 				Gateway: node.Get("gw"),
 			}
-			ln, err = gost.TapListener(cfg)
+			ln, err = pkg.TapListener(cfg)
 		case "ftcp":
-			ln, err = gost.FakeTCPListener(
+			ln, err = pkg.FakeTCPListener(
 				node.Addr,
-				&gost.FakeTCPListenConfig{
+				&pkg.FakeTCPListenConfig{
 					TTL:       ttl,
 					Backlog:   node.GetInt("backlog"),
 					QueueSize: node.GetInt("queue"),
 				},
 			)
 		case "dns":
-			ln, err = gost.DNSListener(
+			ln, err = pkg.DNSListener(
 				node.Addr,
-				&gost.DNSOptions{
+				&pkg.DNSOptions{
 					Mode:      node.Get("mode"),
 					TLSConfig: tlsCfg,
 				},
 			)
 		case "redu", "redirectu":
-			ln, err = gost.UDPRedirectListener(node.Addr, &gost.UDPListenConfig{
+			ln, err = pkg.UDPRedirectListener(node.Addr, &pkg.UDPListenConfig{
 				TTL:       ttl,
 				Backlog:   node.GetInt("backlog"),
 				QueueSize: node.GetInt("queue"),
 			})
 		default:
-			ln, err = gost.TCPListener(node.Addr)
+			ln, err = pkg.TCPListener(node.Addr)
 		}
 		if err != nil {
 			return nil, err
 		}
 
-		var handler gost.Handler
+		var handler pkg.Handler
 		switch node.Protocol {
 		case "http2":
-			handler = gost.HTTP2Handler()
+			handler = pkg.HTTP2Handler()
 		case "socks", "socks5":
-			handler = gost.SOCKS5Handler()
+			handler = pkg.SOCKS5Handler()
 		case "socks4", "socks4a":
-			handler = gost.SOCKS4Handler()
+			handler = pkg.SOCKS4Handler()
 		case "ss":
-			handler = gost.ShadowHandler()
+			handler = pkg.ShadowHandler()
 		case "http":
-			handler = gost.HTTPHandler()
+			handler = pkg.HTTPHandler()
 		case "tcp":
-			handler = gost.TCPDirectForwardHandler(node.Remote)
+			handler = pkg.TCPDirectForwardHandler(node.Remote)
 		case "rtcp":
-			handler = gost.TCPRemoteForwardHandler(node.Remote)
+			handler = pkg.TCPRemoteForwardHandler(node.Remote)
 		case "udp":
-			handler = gost.UDPDirectForwardHandler(node.Remote)
+			handler = pkg.UDPDirectForwardHandler(node.Remote)
 		case "rudp":
-			handler = gost.UDPRemoteForwardHandler(node.Remote)
+			handler = pkg.UDPRemoteForwardHandler(node.Remote)
 		case "forward":
-			handler = gost.SSHForwardHandler()
+			handler = pkg.SSHForwardHandler()
 		case "red", "redirect":
-			handler = gost.TCPRedirectHandler()
+			handler = pkg.TCPRedirectHandler()
 		case "redu", "redirectu":
-			handler = gost.UDPRedirectHandler()
+			handler = pkg.UDPRedirectHandler()
 		case "ssu":
-			handler = gost.ShadowUDPHandler()
+			handler = pkg.ShadowUDPHandler()
 		case "sni":
-			handler = gost.SNIHandler()
+			handler = pkg.SNIHandler()
 		case "tun":
-			handler = gost.TunHandler()
+			handler = pkg.TunHandler()
 		case "tap":
-			handler = gost.TapHandler()
+			handler = pkg.TapHandler()
 		case "dns":
-			handler = gost.DNSHandler(node.Remote)
+			handler = pkg.DNSHandler(node.Remote)
 		case "relay":
-			handler = gost.RelayHandler(node.Remote)
+			handler = pkg.RelayHandler(node.Remote)
 		default:
 			// start from 2.5, if remote is not empty, then we assume that it is a forward tunnel.
 			if node.Remote != "" {
-				handler = gost.TCPDirectForwardHandler(node.Remote)
+				handler = pkg.TCPDirectForwardHandler(node.Remote)
 			} else {
-				handler = gost.AutoHandler()
+				handler = pkg.AutoHandler()
 			}
 		}
 
-		var whitelist, blacklist *gost.Permissions
+		var whitelist, blacklist *pkg.Permissions
 		if node.Values.Get("whitelist") != "" {
-			if whitelist, err = gost.ParsePermissions(node.Get("whitelist")); err != nil {
+			if whitelist, err = pkg.ParsePermissions(node.Get("whitelist")); err != nil {
 				return nil, err
 			}
 		}
 		if node.Values.Get("blacklist") != "" {
-			if blacklist, err = gost.ParsePermissions(node.Get("blacklist")); err != nil {
+			if blacklist, err = pkg.ParsePermissions(node.Get("blacklist")); err != nil {
 				return nil, err
 			}
 		}
@@ -622,41 +622,41 @@ func (r *route) GenRouters() ([]router, error) {
 		resolver := parseResolver(node.Get("dns"))
 		if resolver != nil {
 			resolver.Init(
-				gost.ChainResolverOption(chain),
-				gost.TimeoutResolverOption(timeout),
-				gost.TTLResolverOption(ttl),
-				gost.PreferResolverOption(node.Get("prefer")),
-				gost.SrcIPResolverOption(net.ParseIP(node.Get("ip"))),
+				pkg.ChainResolverOption(chain),
+				pkg.TimeoutResolverOption(timeout),
+				pkg.TTLResolverOption(ttl),
+				pkg.PreferResolverOption(node.Get("prefer")),
+				pkg.SrcIPResolverOption(net.ParseIP(node.Get("ip"))),
 			)
 		}
 
 		handler.Init(
-			gost.AddrHandlerOption(ln.Addr().String()),
-			gost.ChainHandlerOption(chain),
-			gost.UsersHandlerOption(node.User),
-			gost.AuthenticatorHandlerOption(authenticator),
-			gost.TLSConfigHandlerOption(tlsCfg),
-			gost.WhitelistHandlerOption(whitelist),
-			gost.BlacklistHandlerOption(blacklist),
-			gost.StrategyHandlerOption(gost.NewStrategy(node.Get("strategy"))),
-			gost.MaxFailsHandlerOption(node.GetInt("max_fails")),
-			gost.FailTimeoutHandlerOption(node.GetDuration("fail_timeout")),
-			gost.BypassHandlerOption(node.Bypass),
-			gost.ResolverHandlerOption(resolver),
-			gost.HostsHandlerOption(hosts),
-			gost.RetryHandlerOption(node.GetInt("retry")), // override the global retry option.
-			gost.TimeoutHandlerOption(timeout),
-			gost.ProbeResistHandlerOption(node.Get("probe_resist")),
-			gost.KnockingHandlerOption(node.Get("knock")),
-			gost.NodeHandlerOption(node),
-			gost.IPsHandlerOption(ips),
-			gost.TCPModeHandlerOption(node.GetBool("tcp")),
-			gost.IPRoutesHandlerOption(tunRoutes...),
+			pkg.AddrHandlerOption(ln.Addr().String()),
+			pkg.ChainHandlerOption(chain),
+			pkg.UsersHandlerOption(node.User),
+			pkg.AuthenticatorHandlerOption(authenticator),
+			pkg.TLSConfigHandlerOption(tlsCfg),
+			pkg.WhitelistHandlerOption(whitelist),
+			pkg.BlacklistHandlerOption(blacklist),
+			pkg.StrategyHandlerOption(pkg.NewStrategy(node.Get("strategy"))),
+			pkg.MaxFailsHandlerOption(node.GetInt("max_fails")),
+			pkg.FailTimeoutHandlerOption(node.GetDuration("fail_timeout")),
+			pkg.BypassHandlerOption(node.Bypass),
+			pkg.ResolverHandlerOption(resolver),
+			pkg.HostsHandlerOption(hosts),
+			pkg.RetryHandlerOption(node.GetInt("retry")), // override the global retry option.
+			pkg.TimeoutHandlerOption(timeout),
+			pkg.ProbeResistHandlerOption(node.Get("probe_resist")),
+			pkg.KnockingHandlerOption(node.Get("knock")),
+			pkg.NodeHandlerOption(node),
+			pkg.IPsHandlerOption(ips),
+			pkg.TCPModeHandlerOption(node.GetBool("tcp")),
+			pkg.IPRoutesHandlerOption(tunRoutes...),
 		)
 
 		rt := router{
 			node:     node,
-			server:   &gost.Server{Listener: ln},
+			server:   &pkg.Server{Listener: ln},
 			handler:  handler,
 			chain:    chain,
 			resolver: resolver,
@@ -669,12 +669,12 @@ func (r *route) GenRouters() ([]router, error) {
 }
 
 type router struct {
-	node     gost.Node
-	server   *gost.Server
-	handler  gost.Handler
-	chain    *gost.Chain
-	resolver gost.Resolver
-	hosts    *gost.Hosts
+	node     pkg.Node
+	server   *pkg.Server
+	handler  pkg.Handler
+	chain    *pkg.Chain
+	resolver pkg.Resolver
+	hosts    *pkg.Hosts
 }
 
 func (r *router) Serve() error {
